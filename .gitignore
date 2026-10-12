@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+captures/
+captured_packets.csv
+*.pcap
+*.pcapng
+.env
+*.key
+*.pem
+credentials.*
