@@ -5,6 +5,7 @@ A beginner-friendly terminal network sniffer built for the CodeAlpha Cybersecuri
 ## Features
 
 - IPv4 capture modes for all traffic, TCP, UDP, or ICMP
+- Fully offline demo mode with deterministic TCP, UDP, and ICMP synthetic packets
 - Source/destination IPs, ports, timestamps, sizes, and protocol classification
 - Maximum packet count configuration and Ctrl+C early stopping
 - Sixteen-byte hexadecimal payload preview for terminal learning only
@@ -57,8 +58,26 @@ Example menu:
 2. Capture TCP Packets
 3. Capture UDP Packets
 4. Capture ICMP Packets
-5. Exit
+5. Offline Demo (synthetic data)
+6. Exit
 ```
+
+### Privacy-safe screenshot demo
+
+Choose **5. Offline Demo (synthetic data)** from the menu. The demo constructs
+three packets in memory using only the documentation-only addresses
+`192.0.2.10` and `203.0.113.20`; it never opens a capture interface, sends
+traffic, or reads the network. It prints packet analysis and protocol
+statistics, then exports the same metadata-only CSV format to `captures/`.
+
+The output is explicitly marked **DEMO / SYNTHETIC DATA** so it is suitable
+for internship screenshots. For clean screenshots:
+
+1. Run `python sniffer.py` in a terminal sized to show the menu and output.
+2. Select option `5` and capture the packet details plus summary.
+3. Include the `DEMO / SYNTHETIC DATA` label in every screenshot.
+4. Crop out your username, home-directory path, and unrelated terminal tabs.
+5. Do not screenshot live-capture output or publish CSV files from real traffic.
 
 Example output (fictional addresses):
 
@@ -88,16 +107,9 @@ Tests use synthetic Scapy packets and do not perform live capture.
 
 ## Screenshots / Project Demonstration
 
-The `docs/screenshots/` directory contains terminal demonstrations of the
-interactive menu, TCP capture configuration, packet metadata output, and the
-capture summary/CSV export flow. These screenshots are currently withheld from
-the README because the supplied images include a local Windows username and
-path, live-looking IP addresses, and hexadecimal packet payload previews.
-
-Before publishing, replace them with sanitized copies that use fictionalized
-addresses, remove the local username/path, and remove or mask payload output.
-Once sanitized, embed each approved image here with a short caption describing
-the corresponding demonstration.
+The `docs/screenshots/` directory can contain screenshots produced by the
+offline demo above. Review each image before publishing and remove any local
+username, path, unrelated terminal content, or accidental live-capture data.
 
 ## Project structure
 
