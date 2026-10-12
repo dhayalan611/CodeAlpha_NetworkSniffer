@@ -86,6 +86,19 @@ CSV files contain only the eight metadata columns shown below; payload previews 
 
 Tests use synthetic Scapy packets and do not perform live capture.
 
+## Screenshots / Project Demonstration
+
+The `docs/screenshots/` directory contains terminal demonstrations of the
+interactive menu, TCP capture configuration, packet metadata output, and the
+capture summary/CSV export flow. These screenshots are currently withheld from
+the README because the supplied images include a local Windows username and
+path, live-looking IP addresses, and hexadecimal packet payload previews.
+
+Before publishing, replace them with sanitized copies that use fictionalized
+addresses, remove the local username/path, and remove or mask payload output.
+Once sanitized, embed each approved image here with a short caption describing
+the corresponding demonstration.
+
 ## Project structure
 
 ```text
