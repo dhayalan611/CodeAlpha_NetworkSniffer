@@ -5,11 +5,11 @@ A beginner-friendly terminal network sniffer built for the CodeAlpha Cybersecuri
 ## Features
 
 - IPv4 capture modes for all traffic, TCP, UDP, or ICMP
-- Fully offline demo mode with deterministic TCP, UDP, and ICMP synthetic packets
+- Fully offline **Demo Mode (Synthetic Traffic)** with deterministic TCP, UDP, and ICMP packets
 - Source/destination IPs, ports, timestamps, sizes, and protocol classification
 - Maximum packet count configuration and Ctrl+C early stopping
 - Sixteen-byte hexadecimal payload preview for terminal learning only
-- Calculated capture summary and unique CSV export under `captures/`
+- Calculated capture summary and unique CSV export under `captures/` (demo CSVs go to `captures/demo/`)
 - No payloads or application data written to CSV
 - Lightweight synthetic-packet tests that do not need Npcap or administrator access
 
@@ -58,26 +58,29 @@ Example menu:
 2. Capture TCP Packets
 3. Capture UDP Packets
 4. Capture ICMP Packets
-5. Offline Demo (synthetic data)
+5. Demo Mode (Synthetic Traffic)
 6. Exit
 ```
 
-### Privacy-safe screenshot demo
+### Privacy-safe Demo Mode recording
 
-Choose **5. Offline Demo (synthetic data)** from the menu. The demo constructs
+Choose **5. Demo Mode (Synthetic Traffic)** from the menu. The demo constructs
 three packets in memory using only the documentation-only addresses
-`192.0.2.10` and `203.0.113.20`; it never opens a capture interface, sends
-traffic, or reads the network. It prints packet analysis and protocol
-statistics, then exports the same metadata-only CSV format to `captures/`.
+`192.0.2.10`, `198.51.100.5`, and `203.0.113.20`; it never calls `sniff()`,
+opens a capture interface, sends traffic, or reads the network. It prints
+packet analysis, payload previews, protocol counts, and results for the All,
+TCP, UDP, and ICMP filters. It exports the same metadata-only CSV format to
+`captures/demo/`, separate from real-capture CSV files.
 
-The output is explicitly marked **DEMO / SYNTHETIC DATA** so it is suitable
+The output is explicitly marked **DEMO MODE — SYNTHETIC DATA** so it is suitable
 for internship screenshots. For clean screenshots:
 
 1. Run `python sniffer.py` in a terminal sized to show the menu and output.
-2. Select option `5` and capture the packet details plus summary.
-3. Include the `DEMO / SYNTHETIC DATA` label in every screenshot.
+2. Select option `5` and capture the packet details, filter results, and summary.
+3. Keep the `DEMO MODE — SYNTHETIC DATA` label visible throughout the recording.
 4. Crop out your username, home-directory path, and unrelated terminal tabs.
-5. Do not screenshot live-capture output or publish CSV files from real traffic.
+5. Show the generated file under `captures/demo/` if demonstrating CSV export.
+6. Do not screenshot live-capture output or publish CSV files from real traffic.
 
 Example output (fictional addresses):
 
@@ -85,12 +88,12 @@ Example output (fictional addresses):
 Packet Number : 1
 Timestamp     : 2026-01-01 12:00:00
 Source IP     : 192.0.2.10
-Destination IP: 198.51.100.20
+Destination IP: 203.0.113.20
 Protocol      : TCP
 Source Port   : 51514
 Dest Port     : 443
 Packet Size   : 60 bytes
-Payload (hex) : 16 03 01 00 2a
+Payload (hex) : 73 79 6e 74 68 65 74 69 63 20 54 43 50 20 68 65
 ```
 
 CSV files contain only the eight metadata columns shown below; payload previews are never persisted:
@@ -103,7 +106,7 @@ CSV files contain only the eight metadata columns shown below; payload previews 
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-Tests use synthetic Scapy packets and do not perform live capture.
+Tests use synthetic Scapy packets and do not perform live capture or require network access.
 
 ## Screenshots / Project Demonstration
 

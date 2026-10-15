@@ -1,12 +1,14 @@
 import csv
 import shutil
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from scapy.all import ICMP, IP, Raw, TCP, UDP
 
 from sniffer import (CaptureStats, PacketMetadata, classify_protocol,
-                     export_csv, extract_ports, packet_to_metadata,
+                     demo_stats_for_filter, export_csv, extract_ports,
+                     generate_demo_stats, packet_to_metadata, run_demo,
                      validate_packet_count)
 
 
@@ -52,6 +54,41 @@ class SnifferTests(unittest.TestCase):
         self.assertEqual(len(stats.packets), 3)
         self.assertEqual(stats.protocol_counts, {"TCP": 1, "UDP": 1, "ICMP": 1})
         self.assertEqual(stats.total_bytes, 180)
+
+    def test_demo_contains_only_documentation_addresses_and_all_protocols(self):
+        stats = generate_demo_stats()
+        self.assertEqual([packet.protocol for packet in stats.packets], ["TCP", "UDP", "ICMP"])
+        self.assertEqual(
+            {(packet.source_ip, packet.destination_ip) for packet in stats.packets},
+            {("192.0.2.10", "203.0.113.20"), ("198.51.100.5", "203.0.113.20")},
+        )
+        self.assertEqual(stats.protocol_counts, {"TCP": 1, "UDP": 1, "ICMP": 1})
+
+    def test_demo_does_not_call_live_capture(self):
+        with patch("sniffer.capture_packets", side_effect=AssertionError("live capture called")):
+            stats = generate_demo_stats()
+        self.assertEqual(len(stats.packets), 3)
+
+    def test_demo_filters_reuse_the_protocol_filters(self):
+        self.assertEqual(len(demo_stats_for_filter("ip").packets), 3)
+        self.assertEqual(demo_stats_for_filter("tcp and ip").protocol_counts, {"TCP": 1})
+        self.assertEqual(demo_stats_for_filter("udp and ip").protocol_counts, {"UDP": 1})
+        self.assertEqual(demo_stats_for_filter("icmp and ip").protocol_counts, {"ICMP": 1})
+
+    def test_demo_exports_csv_without_live_capture(self):
+        output_dir = Path(__file__).parent / "_tmp_demo_capture_test"
+        try:
+            with patch("scapy.all.sniff", side_effect=AssertionError("live interface opened")), \
+                    patch("sniffer.DEMO_OUTPUT_DIR", output_dir), \
+                    patch("sniffer.export_csv", return_value=output_dir / "demo_capture.csv") as export:
+                path = run_demo()
+            export.assert_called_once()
+            self.assertEqual(path.name, "demo_capture.csv")
+            self.assertEqual(export.call_args.args[1], output_dir)
+            self.assertEqual(export.call_args.kwargs["filename_prefix"], "demo_capture")
+        finally:
+            if output_dir.exists():
+                shutil.rmtree(output_dir)
 
     def test_csv_export_omits_payload(self):
         output_dir = Path(__file__).parent / "_tmp_capture_test"

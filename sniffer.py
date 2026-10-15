@@ -15,6 +15,10 @@ CSV_COLUMNS = ["Packet Number", "Timestamp", "Source IP", "Destination IP",
                "Protocol", "Source Port", "Destination Port", "Packet Size"]
 DEFAULT_PACKET_COUNT = 30
 MAX_PACKET_COUNT = 1_000_000
+DEMO_LABEL = "DEMO MODE — SYNTHETIC DATA"
+DEMO_OUTPUT_DIR = Path("captures") / "demo"
+DEMO_SOURCE_IP = "192.0.2.10"
+DEMO_DESTINATION_IP = "203.0.113.20"
 FILTERS = {"1": ("All IPv4 packets", "ip"), "2": ("TCP packets", "tcp and ip"),
            "3": ("UDP packets", "udp and ip"), "4": ("ICMP packets", "icmp and ip")}
 
@@ -127,10 +131,11 @@ def print_packet(metadata: PacketMetadata) -> None:
     print(f"Payload (hex) : {metadata.payload_preview}")
 
 
-def export_csv(packets: Iterable[PacketMetadata], output_dir: str | Path = "captures") -> Path:
+def export_csv(packets: Iterable[PacketMetadata], output_dir: str | Path = "captures",
+               filename_prefix: str = "capture") -> Path:
     """Write packet metadata to a unique timestamp-based CSV file."""
     directory = Path(output_dir)
-    path = directory / datetime.now().strftime("capture_%Y%m%d_%H%M%S_%f.csv")
+    path = directory / datetime.now().strftime(f"{filename_prefix}_%Y%m%d_%H%M%S_%f.csv")
     try:
         directory.mkdir(parents=True, exist_ok=True)
         with path.open("w", newline="", encoding="utf-8") as csv_file:
@@ -174,15 +179,90 @@ def capture_packets(packet_filter: str, maximum: int) -> CaptureStats:
     return stats
 
 
-def print_summary(stats: CaptureStats) -> None:
+def build_demo_packets() -> list[Any]:
+    """Build deterministic packets locally for privacy-safe demonstrations.
+
+    This function only constructs Scapy packet objects. It does not open an
+    interface, send packets, or read from the network.
+    """
+    IP, TCP, UDP, ICMP, Raw = _layers()
+    return [
+        IP(src=DEMO_SOURCE_IP, dst=DEMO_DESTINATION_IP, ttl=64) /
+        TCP(sport=51514, dport=443, flags="S") / Raw(load=b"synthetic TCP hello"),
+        IP(src="198.51.100.5", dst=DEMO_DESTINATION_IP, ttl=64) /
+        UDP(sport=53, dport=5353) / Raw(load=b"synthetic DNS response"),
+        IP(src=DEMO_SOURCE_IP, dst=DEMO_DESTINATION_IP, ttl=64) /
+        ICMP(type="echo-request") / Raw(load=b"synthetic ICMP echo"),
+    ]
+
+
+def generate_demo_stats() -> CaptureStats:
+    """Analyze the built-in synthetic TCP, UDP, and ICMP sample packets."""
+    packets = build_demo_packets()
+    stats = CaptureStats()
+    demo_timestamp = datetime(2026, 1, 1, 12, 0, 0).timestamp()
+    for number, packet in enumerate(packets, start=1):
+        packet.time = demo_timestamp + number - 1
+        metadata = packet_to_metadata(packet, number)
+        if metadata is not None:
+            stats.packets.append(metadata)
+    return stats
+
+
+def filter_demo_packets(packet_filter: str) -> list[Any]:
+    """Apply a familiar display filter to synthetic packets without sniffing."""
+    IP, TCP, UDP, ICMP, _ = _layers()
+    packets = build_demo_packets()
+    if packet_filter == "ip":
+        return [packet for packet in packets if IP in packet]
+    layer_by_filter = {"tcp and ip": TCP, "udp and ip": UDP, "icmp and ip": ICMP}
+    layer = layer_by_filter.get(packet_filter)
+    if layer is None:
+        raise ValueError(f"Unsupported demo filter: {packet_filter}")
+    return [packet for packet in packets if IP in packet and layer in packet]
+
+
+def demo_stats_for_filter(packet_filter: str) -> CaptureStats:
+    """Analyze only synthetic packets matching one of the normal filters."""
+    stats = CaptureStats()
+    demo_timestamp = datetime(2026, 1, 1, 12, 0, 0).timestamp()
+    for number, packet in enumerate(filter_demo_packets(packet_filter), start=1):
+        packet.time = demo_timestamp + number - 1
+        metadata = packet_to_metadata(packet, number)
+        if metadata is not None:
+            stats.packets.append(metadata)
+    return stats
+
+
+def print_summary(stats: CaptureStats, demo: bool = False) -> None:
     """Print calculated capture totals."""
     counts = stats.protocol_counts
-    print("\n========== CAPTURE SUMMARY ==========")
+    heading = f"{DEMO_LABEL} SUMMARY" if demo else "CAPTURE SUMMARY"
+    print(f"\n========== {heading} ==========")
     print(f"Total Packets : {len(stats.packets)}\nTCP Packets   : {counts.get('TCP', 0)}")
     print(f"UDP Packets   : {counts.get('UDP', 0)}\nICMP Packets  : {counts.get('ICMP', 0)}")
     print(f"\nCapture Duration : {stats.duration:.1f} seconds")
     print(f"Total Bytes      : {stats.total_bytes} bytes")
     print("\n=====================================")
+
+
+def run_demo() -> Path:
+    """Run the offline demonstration and export its synthetic metadata."""
+    print(f"\n========== {DEMO_LABEL} ==========")
+    print("Offline demonstration only; no live network capture interface opened.")
+    stats = generate_demo_stats()
+    for packet in stats.packets:
+        print(f"\n[{DEMO_LABEL}]")
+        print_packet(packet)
+    print_summary(stats, demo=True)
+    print(f"\n[{DEMO_LABEL}] Protocol filter results")
+    for _, (label, packet_filter) in FILTERS.items():
+        filtered = demo_stats_for_filter(packet_filter)
+        print(f"{label}: {len(filtered.packets)} packet(s)")
+    path = export_csv(stats.packets, DEMO_OUTPUT_DIR, filename_prefix="demo_capture")
+    print(f"[{DEMO_LABEL}] Synthetic metadata saved separately to: {path}")
+    print("===========================================")
+    return path
 
 
 def choose_packet_count(input_func: Callable[[str], str] = input) -> int:
@@ -200,13 +280,19 @@ def choose_packet_count(input_func: Callable[[str], str] = input) -> int:
 def main() -> None:
     """Run the interactive terminal interface."""
     print("\n========================================\n       CODEALPHA NETWORK SNIFFER\n========================================")
-    print("\n1. Capture All IPv4 Packets\n2. Capture TCP Packets\n3. Capture UDP Packets\n4. Capture ICMP Packets\n5. Exit")
+    print("\n1. Capture All IPv4 Packets\n2. Capture TCP Packets\n3. Capture UDP Packets\n4. Capture ICMP Packets\n5. Demo Mode (Synthetic Traffic)\n6. Exit")
     choice = input("\nSelect an option: ").strip()
-    if choice == "5":
+    if choice == "6":
         print("Goodbye.")
         return
+    if choice == "5":
+        try:
+            run_demo()
+        except RuntimeError as exc:
+            print(f"Demo error: {exc}")
+        return
     if choice not in FILTERS:
-        print("Invalid menu selection. Please choose an option from 1 to 5.")
+        print("Invalid menu selection. Please choose an option from 1 to 6.")
         return
     maximum = choose_packet_count()
     label, packet_filter = FILTERS[choice]
